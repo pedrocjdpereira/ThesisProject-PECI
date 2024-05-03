@@ -5,7 +5,7 @@ WORKDIR /src
 RUN apk add --no-cache gcc curl musl-dev linux-headers librdkafka-dev
 
 RUN pip install --upgrade pip \
-    && pip install requests confluent_kafka pyyaml
+    && pip install requests confluent_kafka pyyaml flask
 
 RUN curl -LO https://storage.googleapis.com/kubernetes-release/release/$(curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt)/bin/linux/amd64/kubectl
 RUN chmod +x ./kubectl

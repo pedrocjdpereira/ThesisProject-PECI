@@ -1,8 +1,16 @@
+from flask import Flask, jsonify
+
 from config import *
 from nbi_k8s_connector import NBIConnector
 from meao import MEAO
 
-def main():
+app = Flask(__name__)
+
+@app.route('/containerInfo', methods=['GET'])
+def get_container_info():
+    return jsonify(ContainerInfo=meao.containerInfo)
+
+if __name__ == '__main__':
     nbi_k8s_connector = NBIConnector(
         NBI_URL,
         KUBECTL_COMMAND,
@@ -11,13 +19,9 @@ def main():
 
     meao = MEAO(
         nbi_k8s_connector,
-        KAFKA_TOPIC,
-        KAFKA_CONSUMER_CONF,
-        CPU_LOAD_THRESH,
-        MEM_LOAD_THRESH,
+        UPDATE_CONTAINER_IDS_FREQ
     )
 
     meao.start()
 
-if __name__ == "__main__":
-    main()
+    app.run(host='0.0.0.0', port=8000)

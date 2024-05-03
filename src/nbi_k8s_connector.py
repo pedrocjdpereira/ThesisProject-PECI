@@ -65,31 +65,6 @@ class NBIConnector:
 
         return info
     
-    def getNodeSpecs(self):
-        nodeSpecs = {}
-
-        command = (
-            "{} --kubeconfig={} get nodes -o=json".format(
-                self.kubectl_command,
-                self.kubectl_config_path,
-            )
-        )
-        try:
-            # Execute the kubectl command and capture the output
-            node_info = json.loads(subprocess.check_output(command.split()))
-        except subprocess.CalledProcessError as e:
-            # Handle any errors if the command fails
-            print("Error executing kubectl command:", e)
-            return None
-
-        for node in node_info["items"]:
-            nodeSpecs[node["metadata"]["labels"]["kubernetes.io/hostname"]] = {
-                "num_cpu_cores": int(node["status"]["allocatable"]["cpu"]),
-                "memory_size": int(node["status"]["allocatable"]["memory"][:-2])/pow(1024,2),
-            }
-
-        return nodeSpecs
-
     def getContainerInfo(self):
         ns_instances = self.callEndpoints("/nslcm/v1/ns_instances", "GET")
         try:
@@ -115,6 +90,8 @@ class NBIConnector:
                 except Exception as e:
                     print(e)
                 vnf_instances[vnfContent["member-vnf-index-ref"]] = vnfContent["_id"]
+            if "deployed" not in ns_instance["_admin"].keys():
+                break
             kdu_instances = ns_instance["_admin"]["deployed"]["K8s"]
             for kdu in kdu_instances:
                 kdu_instance = kdu["kdu-instance"]
@@ -154,19 +131,3 @@ class NBIConnector:
                             )
 
         return containerInfo
-    
-    def migrate(self, container, node):
-        returnMsg = self.callEndpoints(
-            "/nslcm/v1/ns_instances/{}/migrate_k8s".format(container["ns_id"]), 
-            "POST", 
-            data = json.dumps({
-                "vnfInstanceId": container["vnf_id"],
-                "migrateToHost": node,
-                "kdu": {
-                    "kduId": container["kdu_id"],
-                    "kduCountIndex": 0,
-                }
-            })
-        )
-        print("MIGRATE CONTAINER {} TO NODE {}".format(container, node))
-        print("returnMsg: {}".format(returnMsg))
