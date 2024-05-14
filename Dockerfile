@@ -2,7 +2,11 @@ FROM python:3.10-alpine
 
 WORKDIR /src
 
-RUN apk add --no-cache gcc curl musl-dev linux-headers librdkafka-dev
+RUN apk add --no-cache gcc curl musl-dev linux-headers bash
+
+RUN apk add --no-cache --virtual .make-deps bash make wget git gcc g++ && apk add --no-cache musl-dev zlib-dev openssl zstd-dev pkgconfig libc-dev
+RUN wget https://github.com/edenhill/librdkafka/archive/v2.4.0.tar.gz
+RUN tar -xvf v2.4.0.tar.gz && cd librdkafka-2.4.0 && ./configure --prefix /usr && make && make install
 
 RUN pip install --upgrade pip \
     && pip install requests confluent_kafka pyyaml flask
