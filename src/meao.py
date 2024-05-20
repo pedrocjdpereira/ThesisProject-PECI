@@ -1,4 +1,4 @@
-from time import sleep
+import time
 import threading
 
 class MEAO:
@@ -33,5 +33,5 @@ class MEAO:
 
     def update_container_ids(self):
         while True:
-            sleep(self.update_container_ids_freq)
+            time.sleep(self.update_container_ids_freq)
             self.containerInfo = self.nbi_k8s_connector.getContainerInfo()

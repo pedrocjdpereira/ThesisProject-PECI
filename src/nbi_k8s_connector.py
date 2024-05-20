@@ -1,74 +1,24 @@
-import warnings
-import requests
 import json
 import subprocess
 import yaml
+from osmclient import client
+from osmclient.common.exceptions import ClientException
 
 class NBIConnector:
 
-    def __init__(self, nbi_url, kubectl_command, kubectl_config_path) -> None:
-        self.nbi_url = nbi_url
-        self.authToken = self.getAuthToken()
+    def __init__(self, osm_hostname, kubectl_command, kubectl_config_path) -> None:
+        self.osm_hostname = osm_hostname
         self.kubectl_command = kubectl_command
         self.kubectl_config_path = kubectl_config_path
+        self.nbi_client = client.Client(host=self.osm_hostname, port=9999,sol005=True)
         try:
-            kubectl_config = json.loads(self.callEndpoints("/admin/v1/k8sclusters", "GET"))[0]
+            kubectl_config = self.nbi_client.k8scluster.list()[0]
         except Exception as e:
             print("ERROR: Could not get kube config")
             exit(1)
         with open(self.kubectl_config_path, 'w') as file:
             yaml.dump(kubectl_config["credentials"], file)
 
-    def getAuthToken(self):
-        # Authentication
-        endpoint = self.nbi_url + '/admin/v1/tokens'
-        result = {'error': True, 'data': ''}
-        headers = {"Content-Type": "application/yaml", "accept": "application/json"}
-        data = {"username": 'admin', "password": 'admin'}
-        try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
-                r = requests.post(endpoint, headers=headers,  json=data, verify=False)
-        except Exception as e:
-            result["data"] = str(e)
-            return result
-
-        if r.status_code == requests.codes.ok:
-            result['error'] = False
-
-        result["data"] = r.text
-        token = json.loads(r.text)
-        return token["id"]
-
-    def callEndpoints(self, endpoint, method, data=None):
-        if not self.authToken:
-            return None
-        
-        # Get NS Instances
-        endpoint = self.nbi_url + endpoint
-        result = {'error': True, 'data': ''}
-        headers = {"Content-Type": "application/yaml", "accept": "application/json",
-                'Authorization': 'Bearer {}'.format(self.authToken)}
-        try:
-            with warnings.catch_warnings():
-                warnings.filterwarnings("ignore", category=requests.packages.urllib3.exceptions.InsecureRequestWarning)
-                match method:
-                    case "GET":
-                        r = requests.get(endpoint, data=data, params=None, verify=False, stream=True, headers=headers)
-                    case "POST":
-                        r = requests.post(endpoint, data=data, params=None, verify=False, stream=True, headers=headers)
-        except Exception as e:
-            result['data'] = str(e)
-            return result
-
-        if r.status_code == requests.codes.ok:
-            result['error'] = False
-
-        result['data'] = r.text
-        info = r.text
-
-        return info
-    
     def getNodeSpecs(self):
         nodeSpecs = {}
 
@@ -95,11 +45,7 @@ class NBIConnector:
         return nodeSpecs
     
     def getContainerInfo(self):
-        ns_instances = self.callEndpoints("/nslcm/v1/ns_instances", "GET")
-        try:
-            ns_instances = json.loads(ns_instances)
-        except Exception as e:
-            print(e)
+        ns_instances = self.nbi_client.ns.list()
         
         if len(ns_instances) < 1:
             print('ERROR: No deployed ns instances')
@@ -113,11 +59,7 @@ class NBIConnector:
             vnf_ids = ns_instance["constituent-vnfr-ref"]
             vnf_instances = {}
             for vnf_id in vnf_ids:
-                vnfContent = self.callEndpoints("/nslcm/v1/vnf_instances/{}".format(vnf_id), "GET")
-                try:
-                    vnfContent = json.loads(vnfContent)
-                except Exception as e:
-                    print(e)
+                vnfContent = self.nbi_client.vnf.get(vnf_id)
                 vnf_instances[vnfContent["member-vnf-index-ref"]] = vnfContent["_id"]
             if "deployed" not in ns_instance["_admin"].keys():
                 break

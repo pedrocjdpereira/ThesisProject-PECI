@@ -1,6 +1,5 @@
 import os
-from flask import Flask, jsonify
-
+from flask import Flask, jsonify, redirect
 from nbi_k8s_connector import NBIConnector
 from meao import MEAO
 
@@ -23,11 +22,11 @@ def get_node_specs_hostname(hostname):
 @app.route('/nodeSpecs/update', methods=['GET'])
 def update_node_specs():
     meao.update_node_specs()
-    return jsonify(NodeSpecs=meao.get_node_specs())
+    return redirect('/nodeSpecs')
 
 if __name__ == '__main__':
     nbi_k8s_connector = NBIConnector(
-        os.environ.get("NBI_URL"),
+        os.environ.get("OSM_HOSTNAME"),
         os.environ.get("KUBECTL_COMMAND"),
         os.environ.get("KUBECTL_CONFIG_PATH")
     )
